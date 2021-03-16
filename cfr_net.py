@@ -1,7 +1,10 @@
 import tensorflow as tf
 import numpy as np
+import torch 
+import torch.nn as nn
 
 from util import *
+from dictionary import flags
 
 class cfr_net(object):
     """
@@ -13,14 +16,14 @@ class cfr_net(object):
     creates an object containing relevant TF nodes as member variables.
     """
 
-    def __init__(self, x, t, y_ , p_t, FLAGS, r_alpha, r_lambda, do_in, do_out, dims):
+    def __init__(self, x, t, y_ , p_t, FLAGS, r_alpha, r_lambda, do_in, do_out, dims):              #we don't need the FLAGS anymore right?
         self.variables = {}
         self.wd_loss = 0
 
-        if FLAGS.nonlin.lower() == 'elu':
-            self.nonlin = tf.nn.elu         # Exponential activation layer, in pytorch: torch.nn.ELU
+        if flags.get_val('nonlin') == 'elu':
+            self.nonlin = torch.nn.ELU         # Exponential activation layer, in pytorch: torch.nn.ELU
         else:
-            self.nonlin = tf.nn.relu        # Relu activation function layer, in pytorch: torch.nn.ReLU 
+            self.nonlin = torch.nn.ReLU        # Relu activation function layer, in pytorch: torch.nn.ReLU 
 
         self._build_graph(x, t, y_ , p_t, FLAGS, r_alpha, r_lambda, do_in, do_out, dims)
 
@@ -37,7 +40,7 @@ class cfr_net(object):
     def _create_variable(self, var, name):
         ''' Create and adds variables to the internal track-keeper '''
 
-        var = tf.Variable(var, name=name)      #Sort of tensor in pytorch
+        var = torch.tensor(var, name=name)      #Sort of tensor in pytorch
         self._add_variable(var, name)
         return var
 
@@ -45,7 +48,7 @@ class cfr_net(object):
         ''' Create and adds variables to the internal track-keeper
             and adds it to the list of weight decayed variables '''
         var = self._create_variable(initializer, name)
-        self.wd_loss += wd*tf.nn.l2_loss(var)  # loss with the L2 
+        self.wd_loss += wd*torch.nn.MSELoss(var)  # loss with the L2 
         return var
 
     def _build_graph(self, x, t, y_ , p_t, FLAGS, r_alpha, r_lambda, do_in, do_out, dims):
