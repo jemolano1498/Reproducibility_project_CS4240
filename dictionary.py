@@ -57,4 +57,6 @@ flags.add_val('val_part', 0, """Validation part. """)
 flags.add_val('split_output', 0, """Whether to split output layers between treated and control. """)
 flags.add_val('reweight_sample', 1, """Whether to reweight sample for prediction loss with average treatment probability. """)
 
+print(flags.get_val('n_in'))
+
 
