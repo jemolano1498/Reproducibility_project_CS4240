@@ -3,9 +3,6 @@ import numpy as np
 import torch 
 import torch.nn as nn
 
-from util import *
-from dictionary import flags
-
 class cfr_net(object):
     """
     cfr_net implements the counterfactual regression neural network
@@ -51,7 +48,7 @@ class cfr_net(object):
         self.wd_loss += wd*(torch.sum(var**2)/2)  # loss with the L2 
         return var
 
-    def _build_graph(self, x, t, y_ , p_t, r_alpha, r_lambda, do_in, do_out, dims):
+    def _build_graph(self, flag, x, t, y_ , p_t, r_alpha, r_lambda, do_in, do_out, dims):
         """
         Constructs a TensorFlow subgraph for counterfactual regression.
         Sets the following member variables (to TF nodes):
