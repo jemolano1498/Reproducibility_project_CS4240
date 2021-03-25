@@ -5,6 +5,7 @@ import cfr_net_pytorch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
+from torchsummary import summary
 
 def init_parameters (flags):
     flags.add_val('loss', 'l2', """Which loss function to use (l1/l2/log)""")
@@ -59,10 +60,11 @@ def run():
     flags = Parameters()
     init_parameters(flags)
     D = load_data('data/ihdp_npci_1-100.train.npz')
-    tensors_train = torch.Tensor(D['x']), torch.Tensor(D['ycf']).long()
+    tensors_train = torch.Tensor(D['x']), torch.Tensor(D['yf']).long()
     # Create dataloaders from the training and test set for easier iteration over the data
     train_loader = DataLoader(TensorDataset(*tensors_train))
     net = cfr_net_pytorch.FCNet()
+    summary(net, (100,25))
 
     # Loss Function
     criterion = nn.CrossEntropyLoss()

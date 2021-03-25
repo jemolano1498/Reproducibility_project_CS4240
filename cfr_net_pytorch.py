@@ -23,12 +23,12 @@ class FCNet(nn.Module):
         self.do2 = torch.nn.Dropout(p=p)
         self.do3 = torch.nn.Dropout(p=p)
 
-        self.fc6 = nn.Linear(100, 25)
+        self.fc6 = nn.Linear(100, 1)
 
     def forward(self, x):
         h = self.do1(F.relu(self.h_in(x)))
         h = self.do2(h + F.relu(self.layer_1(h)))
-        h = self.do2(h + F.relu(self.layer_2(h)))
+        h = self.do3(h + F.relu(self.layer_2(h)))
         return h
 
 
