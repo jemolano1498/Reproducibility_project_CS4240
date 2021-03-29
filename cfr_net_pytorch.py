@@ -18,17 +18,31 @@ class FCNet(nn.Module):
         self.h_in = nn.Linear(25, 100)
         self.layer_1 = nn.Linear(100, 100)
         self.layer_2 = nn.Linear(100, 100)
+        self.layer_3 = nn.Linear(100, 100)
+        self.Layer_4 = nn.Linear(100, 100)
+        self.Layer_5 = nn.Linear(100, 100)
 
         self.do1 = torch.nn.Dropout(p=p)
         self.do2 = torch.nn.Dropout(p=p)
         self.do3 = torch.nn.Dropout(p=p)
+        self.do4 = torch.nn.Dropout(p=p)
+        self.do5 = torch.nn.Dropout(p=p)
+        self.do6 = torch.nn.Dropout(p=p)
+
 
         self.fc6 = nn.Linear(100, 1)
 
-    def forward(self, x):
+    def forward(self, x, t):
         h = self.do1(F.relu(self.h_in(x)))
         h = self.do2(h + F.relu(self.layer_1(h)))
         h = self.do3(h + F.relu(self.layer_2(h)))
+        h = torch.concat(h,t)                           # Concatenating with t
+        h = self.do4(h + F.relu(self.layer_3(h)))
+        h = self.do5(h + F.relu(self.layer_4(h)))
+        h = self.do6(h + F.relu(self.layer_5(h)))
+        h = self.fc6(h)
+
+
         return h
 
 

@@ -60,7 +60,7 @@ def run():
     flags = Parameters()
     init_parameters(flags)
     D = load_data('data/ihdp_npci_1-100.train.npz')
-    tensors_train = torch.Tensor(D['x']), torch.Tensor(D['yf']).long()
+    tensors_train = torch.Tensor(D['x']), torch.Tensor(D['yf']).long(),torch.Tensor(D['t'])
     # Create dataloaders from the training and test set for easier iteration over the data
     train_loader = DataLoader(TensorDataset(*tensors_train))
     net = cfr_net_pytorch.FCNet()
