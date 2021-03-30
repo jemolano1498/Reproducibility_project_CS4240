@@ -18,9 +18,9 @@ class FCNet(nn.Module):
         self.h_in = nn.Linear(25, 100)
         self.layer_1 = nn.Linear(100, 100)
         self.layer_2 = nn.Linear(100, 100)
-        self.layer_3 = nn.Linear(100, 100)
-        self.Layer_4 = nn.Linear(100, 100)
-        self.Layer_5 = nn.Linear(100, 100)
+        self.layer_3 = nn.Linear(101, 100)
+        self.layer_4 = nn.Linear(100, 100)
+        self.layer_5 = nn.Linear(100, 100)
 
         self.do1 = torch.nn.Dropout(p=p)
         self.do2 = torch.nn.Dropout(p=p)
@@ -34,14 +34,13 @@ class FCNet(nn.Module):
 
     def forward(self, x, t):
         h = self.do1(F.relu(self.h_in(x)))
-        h = self.do2(h + F.relu(self.layer_1(h)))
-        h = self.do3(h + F.relu(self.layer_2(h)))
-        h = torch.cat(h,t)                           # Concatenating with t
-        h = self.do4(h + F.relu(self.layer_3(h)))
-        h = self.do5(h + F.relu(self.layer_4(h)))
-        h = self.do6(h + F.relu(self.layer_5(h)))
+        h = self.do2(F.relu(self.layer_1(h)))
+        h = self.do3(F.relu(self.layer_2(h)))
+        h = torch.cat((h,t),2)                           # Concatenating with t
+        h = self.do4(F.relu(self.layer_3(h)))
+        h = self.do5(F.relu(self.layer_4(h)))
+        h = self.do6(F.relu(self.layer_5(h)))
         h = self.fc6(h)
-
 
         return h
 
@@ -64,14 +63,17 @@ def train(train_loader, net, optimizer, criterion):
     # iterate through batches
     for i, data in enumerate(train_loader):
         # get the inputs; data is a list of [inputs, labels]
-        inputs, labels = data
+        inputs, labels, t = data
 
         # zero the parameter gradients
         optimizer.zero_grad()
 
         # forward + backward + optimize
-        outputs = net(inputs)
-        loss = criterion(outputs, labels)
+        temp_in = torch.transpose(inputs,1,2)
+        temp_t = torch.transpose(t,0,1).unsqueeze(0)
+        outputs = net(temp_in,temp_t)
+        temp_label = torch.transpose(labels, 0, 1)
+        loss = criterion(outputs, temp_label)
         loss.backward()
         optimizer.step()
 

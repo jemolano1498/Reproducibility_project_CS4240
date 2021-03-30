@@ -64,7 +64,7 @@ def run():
     # Create dataloaders from the training and test set for easier iteration over the data
     train_loader = DataLoader(TensorDataset(*tensors_train))
     net = cfr_net_pytorch.FCNet()
-    summary(net, (100,25), (100,1))
+    summary(net, [(100,25), (100,1)])
 
     # Loss Function
     criterion = nn.CrossEntropyLoss()
