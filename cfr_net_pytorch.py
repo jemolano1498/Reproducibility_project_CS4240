@@ -36,7 +36,7 @@ class FCNet(nn.Module):
         h = self.do1(F.relu(self.h_in(x)))
         h = self.do2(h + F.relu(self.layer_1(h)))
         h = self.do3(h + F.relu(self.layer_2(h)))
-        h = torch.concat(h,t)                           # Concatenating with t
+        h = torch.cat(h,t)                           # Concatenating with t
         h = self.do4(h + F.relu(self.layer_3(h)))
         h = self.do5(h + F.relu(self.layer_4(h)))
         h = self.do6(h + F.relu(self.layer_5(h)))
