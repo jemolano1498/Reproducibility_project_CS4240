@@ -30,7 +30,7 @@ class FCNet(nn.Module):
         self.do6 = torch.nn.Dropout(p=p)
 
 
-        self.fc6 = nn.Linear(100, 1)
+        self.fc6 = nn.Linear(100, 100)
 
     def forward(self, x, t):
         h = self.do1(F.relu(self.h_in(x)))
@@ -73,7 +73,7 @@ def train(train_loader, net, optimizer, criterion):
         temp_t = torch.transpose(t,0,1).unsqueeze(0)
         outputs = net(temp_in,temp_t)
         temp_label = torch.transpose(labels, 0, 1)
-        loss = criterion(outputs, temp_label)
+        loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
 

@@ -60,14 +60,15 @@ def run():
     flags = Parameters()
     init_parameters(flags)
     D = load_data('data/ihdp_npci_1-100.train.npz')
-    tensors_train = torch.Tensor(D['x']), torch.Tensor(D['yf']).long(),torch.Tensor(D['t'])
+    tensors_train = torch.Tensor(D['x']), torch.Tensor(D['yf']),torch.Tensor(D['t'])
     # Create dataloaders from the training and test set for easier iteration over the data
     train_loader = DataLoader(TensorDataset(*tensors_train))
     net = cfr_net_pytorch.FCNet()
     summary(net, [(100,25), (100,1)])
 
     # Loss Function
-    criterion = nn.CrossEntropyLoss()
+    # criterion = nn.CrossEntropyLoss() # Has a bug
+    criterion = nn.MSELoss()
 
     # Optimizer
     optimizer = optim.Adam(net.parameters(), lr=5e-4)
