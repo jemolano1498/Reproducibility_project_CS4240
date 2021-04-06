@@ -36,9 +36,9 @@ class FCNet(nn.Module):
     def forward(self, x, t):
         h = self.do1(F.relu(self.h_in(x)))
         h = self.do2(F.relu(self.layer_1(h)))
-        h = self.do3(F.relu(self.layer_2(h)))
-        h_rep = torch.cat((h,t),2)                           # Concatenating with t
-        h = self.do4(F.relu(self.layer_3(h_rep)))
+        h_rep = self.do3(F.relu(self.layer_2(h)))
+        h = torch.cat((h_rep,t),2)                           # Concatenating with t
+        h = self.do4(F.relu(self.layer_3(h)))
         h = self.do5(F.relu(self.layer_4(h)))
         h = self.do6(F.relu(self.layer_5(h)))
         h = self.fc6(h)
@@ -85,7 +85,7 @@ def train(train_loader, net, optimizer, criterion, p_t, flags):
 
         # Normalisation of h_rep
         if flags.get_val('normalization') == 'divide':  # normalization set to none default
-            h_rep_norm = h_rep / torch.sqrt((torch.sum(torch.square(h_rep), 1,keep_dims=True))) # Not sure if this works.. but we don't use normalisation
+            h_rep_norm = h_rep / torch.sqrt((torch.sum(torch.square(h_rep), 1,keepdim=True))) # Not sure if this works.. but we don't use normalisation
         else:
             h_rep_norm = 1.0 * h_rep
 
@@ -97,12 +97,22 @@ def train(train_loader, net, optimizer, criterion, p_t, flags):
         else:
             p_ipm = 0.5
 
-        if flags.get_val('imb_fun') == 'mmd2_rbf':
-            imb_dist = mmd2_rbf(h_rep_norm, t, p_ipm, flags.get_val('rbf_sigma'))
-            imb_error = r_alpha * imb_dist
+            # I just copy pasted this code from the orignial CFR net to remind you which imbalance functiions we should use
+        if flags.get_val('imb_fun') == 'mmd2_lin':
+            imb_error = 0
+            #imb_dist = mmd2_lin(h_rep_norm, t, p_ipm)
+            #imb_error = safe_sqrt(torch.square(r_alpha) * imb_dist)
+        elif flags.get_val('imb_fun') == 'wass':
+            imb_error = 0
+            #imb_dist, imb_mat = wasserstein(h_rep_norm, t, p_ipm, lam=flags.get_val('wass_lambda'), its=flags.get_val('wass_iterations'), sq=False, backpropT=flags.get_val('wass_bpt'))
+            #imb_error = r_alpha * imb_dist
+        else:
+            imb_error = 0
 
         # Backward + optimize
-        loss = criterion(outputs*sample_weight, labels)
+        loss = criterion(outputs*sample_weight, labels)         # Called the risk in the original file
+        loss = loss + imb_error
+        pred_error = torch.sqrt(criterion(outputs,labels))
         loss.backward()
         optimizer.step()
 
@@ -112,4 +122,4 @@ def train(train_loader, net, optimizer, criterion, p_t, flags):
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
 
-    return avg_loss / len(train_loader), 100 * correct / total
+    return avg_loss / len(train_loader), 100 * correct / total, outputs

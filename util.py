@@ -1,12 +1,15 @@
 import torch
 import numpy as np
 
+
+
 def pdist2sq(X,Y):
     """ Computes the squared Euclidean distance between all pairs x in X, y in Y """
-    C = torch.matmul(X,torch.transpose(Y))
+    Y_temp = torch.transpose(Y,0,1)
+    C = -2*torch.matmul(X,Y_temp)
     nx = torch.sum(torch.square(X),1,keepdim=True)
     ny = torch.sum(torch.square(Y),1,keepdim=True)
-    D = (C + torch.transpose(ny)) + nx
+    D = C + nx + ny
     return D
 
 def mmd2_rbf(X,t,p,sig):
@@ -21,9 +24,9 @@ def mmd2_rbf(X,t,p,sig):
     Xc = torch.index_select(X,1,ic)
     Xt = torch.index_select(X,1,it)
 
-    Kcc = torch.exp(-pdist2sq(Xc,Xc)/torch.square(sig))
-    Kct = torch.exp(-pdist2sq(Xc,Xt)/torch.square(sig))
-    Ktt = torch.exp(-pdist2sq(Xt,Xt)/torch.square(sig))
+    Kcc = torch.exp(-pdist2sq(Xc,Xc)/np.square(sig))
+    Kct = torch.exp(-pdist2sq(Xc,Xt)/np.square(sig))
+    Ktt = torch.exp(-pdist2sq(Xt,Xt)/np.square(sig))
     m = torch.float(torch.shape(Xc)[0])
     n = torch.float(torch.shape(Xt)[0])
 
