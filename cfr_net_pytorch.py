@@ -29,9 +29,7 @@ class FCNet(nn.Module):
         self.do4 = torch.nn.Dropout(p=p)
         self.do5 = torch.nn.Dropout(p=p)
         self.do6 = torch.nn.Dropout(p=p)
-
-
-        self.fc6 = nn.Linear(100, 100)
+        self.fc6 = nn.Linear(100, 1)
 
     def forward(self, x, t):
         h = self.do1(F.relu(self.h_in(x)))
@@ -122,4 +120,4 @@ def train(train_loader, net, optimizer, criterion, p_t, flags):
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
 
-    return avg_loss / len(train_loader), 100 * correct / total, outputs
+    return avg_loss / len(train_loader), 100 * correct / total
