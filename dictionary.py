@@ -13,4 +13,3 @@ class Parameters():
         return  self.parameter[name][1]
 
 
-

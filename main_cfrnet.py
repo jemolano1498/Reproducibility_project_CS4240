@@ -43,7 +43,7 @@ def init_parameters (flags):
     flags.add_val('repetitions', 1, """Repetitions with different seed.""")
     flags.add_val('use_p_correction', 1, """Whether to use population size p(t) in mmd/disc/wass.""")
     flags.add_val('optimizer', 'RMSProp', """Which optimizer to use. (RMSProp/Adagrad/GradientDescent/Adam)""")
-    flags.add_val('imb_fun', 'mmd_lin',
+    flags.add_val('imb_fun', 'mmd2_rbf',
                   """Which imbalance penalty to use (mmd_lin/mmd_rbf/mmd2_lin/mmd2_rbf/lindisc/wass). """)
     flags.add_val('output_csv', 0, """Whether to save a CSV file with the results""")
     flags.add_val('output_delay', 100, """Number of iterations between log/loss outputs. """)
@@ -73,7 +73,10 @@ def run():
     # Optimizer
     optimizer = optim.Adam(net.parameters(), lr=5e-4)
 
-    train_loss, train_acc = cfr_net_pytorch.train(train_loader, net, optimizer, criterion)
+    # Probability of being treated # Must be adapted if we use test- and trainingset
+    p_t = torch.mean(tensors_train[2])
+
+    train_loss, train_acc = cfr_net_pytorch.train(train_loader, net, optimizer, criterion, p_t, flags)
 
 if __name__ == '__main__':
     run()

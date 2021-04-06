@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from util import *
 
 class FCNet(nn.Module):
     """
@@ -36,16 +37,16 @@ class FCNet(nn.Module):
         h = self.do1(F.relu(self.h_in(x)))
         h = self.do2(F.relu(self.layer_1(h)))
         h = self.do3(F.relu(self.layer_2(h)))
-        h = torch.cat((h,t),2)                           # Concatenating with t
-        h = self.do4(F.relu(self.layer_3(h)))
+        h_rep = torch.cat((h,t),2)                           # Concatenating with t
+        h = self.do4(F.relu(self.layer_3(h_rep)))
         h = self.do5(F.relu(self.layer_4(h)))
         h = self.do6(F.relu(self.layer_5(h)))
         h = self.fc6(h)
 
-        return h
+        return h, h_rep
 
 
-def train(train_loader, net, optimizer, criterion):
+def train(train_loader, net, optimizer, criterion, p_t, flags):
     """
     Trains network for one epoch in batches.
 
@@ -65,15 +66,43 @@ def train(train_loader, net, optimizer, criterion):
         # get the inputs; data is a list of [inputs, labels]
         inputs, labels, t = data
 
+        # Sample reweighting
+        if flags.get_val('reweight_sample'):
+            w_t = t / (2 * p_t)
+            w_c = (1 - t) / (2 * 1 - p_t)
+            sample_weight = w_t + w_c
+        else:
+            sample_weight = 1.0
+
         # zero the parameter gradients
         optimizer.zero_grad()
 
-        # forward + backward + optimize
+        # forward
         temp_in = torch.transpose(inputs,1,2)
         temp_t = torch.transpose(t,0,1).unsqueeze(0)
-        outputs = net(temp_in,temp_t)
+        outputs,h_rep = net(temp_in,temp_t)
         temp_label = torch.transpose(labels, 0, 1)
-        loss = criterion(outputs, labels)
+
+        # Normalisation of h_rep
+        if flags.get_val('normalization') == 'divide':  # normalization set to none default
+            h_rep_norm = h_rep / torch.sqrt((torch.sum(torch.square(h_rep), 1,keep_dims=True))) # Not sure if this works.. but we don't use normalisation
+        else:
+            h_rep_norm = 1.0 * h_rep
+
+        r_alpha = 0.05 # No idea what this should be
+
+        # Imbalance error
+        if flags.get_val('use_p_correction'):
+            p_ipm = p_t
+        else:
+            p_ipm = 0.5
+
+        if flags.get_val('imb_fun') == 'mmd2_rbf':
+            imb_dist = mmd2_rbf(h_rep_norm, t, p_ipm, flags.get_val('rbf_sigma'))
+            imb_error = r_alpha * imb_dist
+
+        # Backward + optimize
+        loss = criterion(outputs*sample_weight, labels)
         loss.backward()
         optimizer.step()
 
