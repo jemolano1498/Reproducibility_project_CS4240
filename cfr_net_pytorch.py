@@ -99,6 +99,11 @@ def train(train_loader, net, optimizer, criterion, p_t, flags):
         if flags.get_val('imb_fun') == 'mmd2_lin':
             imb_error = 0
             #imb_dist = mmd2_lin(h_rep_norm, t, p_ipm)
+            imb_dist, imb_mat = wasserstein(h_rep_norm, t, p_ipm, lam=flags.get_val('wass_lambda'),
+                                            its=flags.get_val('wass_iterations'), sq=False,
+                                            backpropT=flags.get_val('wass_bpt'))
+            # imb_dist = mmd2_lin(h_rep_norm, t, p_ipm)
+
             #imb_error = safe_sqrt(torch.square(r_alpha) * imb_dist)
         elif flags.get_val('imb_fun') == 'wass':
             imb_error = 0
