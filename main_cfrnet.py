@@ -1,5 +1,7 @@
 from data_loader import *
 from dictionary import *
+from util import *
+import random
 import torch
 import cfr_net_pytorch
 import torch.nn as nn
@@ -51,32 +53,78 @@ def init_parameters (flags):
                   """Number of iterations between prediction outputs. (-1 gives no intermediate output). """)
     flags.add_val('debug', 0, """Debug mode. """)
     flags.add_val('save_rep', 0, """Save representations after training. """)
-    flags.add_val('val_part', 0, """Validation part. """)
+    flags.add_val('val_part', 0.1, """Validation part. """)
     flags.add_val('split_output', 0, """Whether to split output layers between treated and control. """)
     flags.add_val('reweight_sample', 1,
                   """Whether to reweight sample for prediction loss with average treatment probability. """)
+
+def train(net, D, I_valid, flags):
+    ''' Train/validation split '''
+    n = D['x'].shape[0]
+    I = range(n);
+    I_train = list(set(I) - set(I_valid))
+    n_train = len(I_train)
+
+    ''' Compute treatment probability'''
+    p_treated = np.mean(D['t'][I_train, :])
+
+    factual_tensor = torch.Tensor(D['x'][I_train, :]), torch.Tensor(D['yf'][I_train, :]), torch.Tensor(D['t'][I_train, :])
+    cfactual_tensor = torch.Tensor(D['x'][I_valid, :]), torch.Tensor(D['yf'][I_valid, :]), torch.Tensor(D['t'][I_valid, :])
+    valid_tensor = torch.Tensor(D['x'][I_train, :]), torch.Tensor(D['ycf'][I_train, :]), torch.Tensor(D['t'][I_train, :])
+
+    # Loss Function
+    criterion = nn.MSELoss()
+
+    # Optimizer
+    optimizer = optim.Adam(net.parameters(), lr=flags.get_val('lrate'))
+
+    # Probability of being treated # Must be adapted if we use test- and trainingset
+    p_t = torch.mean(factual_tensor[2])
+
+    for i in range(flags.get_val('iterations')):
+        ''' Fetch sample '''
+        I = random.sample(range(0, n_train), flags.get_val('batch_size'))
+        x_batch = D['x'][I_train,:][I,:]
+        t_batch = D['t'][I_train,:][I]
+        y_batch = D['yf'][I_train,:][I]
+
+        train_tensor = torch.Tensor(x_batch), torch.Tensor(y_batch), torch.Tensor(t_batch)
+
+        # Create dataloaders from the training and test set for easier iteration over the data
+        # train_loader = DataLoader(TensorDataset(*train_tensor), batch_size=flags.get_val('batch_size'), shuffle=True)
+
+        obj_loss,f_error,imb_err = cfr_net_pytorch.train(train_tensor, net, optimizer, criterion, p_t, flags)
+
+        if i % flags.get_val('output_delay') == 0 or i == flags.get_val('iterations') - 1:
+            loss_str = str(i) + '\tObj: %.3f,\tF: %.3f,\tImb: %.2g' \
+                       % (obj_loss, f_error, imb_err)
+            print(loss_str)
+
+
 def run():
 
     flags = Parameters()
     init_parameters(flags)
-    D = load_data('data/ihdp_npci_1-100.train.npz')
-    tensors_train = torch.Tensor(D['x']), torch.Tensor(D['yf']),torch.Tensor(D['t'])
-    # Create dataloaders from the training and test set for easier iteration over the data
-    train_loader = DataLoader(TensorDataset(*tensors_train))
+
     net = cfr_net_pytorch.FCNet()
-    summary(net, [(100,25), (100,1)])
+    summary(net, [(100, 25), (100, 1)])
 
-    # Loss Function
-    # criterion = nn.CrossEntropyLoss() # Has a bug
-    criterion = nn.MSELoss()
+    D = load_data('data/ihdp_npci_1-100.train.npz')
 
-    # Optimizer
-    optimizer = optim.Adam(net.parameters(), lr=5e-4)
+    D_exp = {}
+    D_exp['x'] = D['x']
+    D_exp['t'] = D['t']
+    D_exp['yf'] = D['yf']
+    if D['HAVE_TRUTH']:
+        D_exp['ycf'] = D['ycf']
+    else:
+        D_exp['ycf'] = None
 
-    # Probability of being treated # Must be adapted if we use test- and trainingset
-    p_t = torch.mean(tensors_train[2])
+    I_train, I_valid = validation_split(D_exp, flags.get_val('val_part'))
 
-    train_loss, train_acc = cfr_net_pytorch.train(train_loader, net, optimizer, criterion, p_t, flags)
+    losses, preds_train, preds_test, reps, reps_test = train(net, D_exp, I_valid, flags)
+
+
 
 if __name__ == '__main__':
     run()

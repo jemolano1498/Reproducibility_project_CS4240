@@ -1,7 +1,24 @@
 import torch
 import numpy as np
+from scipy.stats import wasserstein_distance
 
 SQRT_CONST = 1e-10
+
+def validation_split(D_exp, val_fraction):
+    """ Construct a train/validation split """
+    n = D_exp['x'].shape[0]
+
+    if val_fraction > 0:
+        n_valid = int(val_fraction*n)
+        n_train = n-n_valid
+        I = np.random.permutation(range(0,n))
+        I_train = I[:n_train]
+        I_valid = I[n_train:]
+    else:
+        I_train = range(n)
+        I_valid = []
+
+    return I_train, I_valid
 
 def pdist2sq(X,Y):
     """ Computes the squared Euclidean distance between all pairs x in X, y in Y """
@@ -67,6 +84,9 @@ def wasserstein(X,t,p,lam=10,its=10,sq=False,backpropT=False):
     nc = Xc.shape[1]
     nt = Xt.shape[1]
 
+
+    wasserstein_distance(Xt.detach().numpy(),Xc.detach().numpy())
+
     ''' Compute distance matrix'''
     if sq:
         M = pdist2sq(Xt,Xc)
@@ -81,33 +101,33 @@ def wasserstein(X,t,p,lam=10,its=10,sq=False,backpropT=False):
 
     ''' Compute new distance matrix '''
     Mt = M
-    row = delta*torch.ones(torch.shape(M[0:1,:]))
-    # col = tf.concat(0,[delta*tf.ones(tf.shape(M[:,0:1])),tf.zeros((1,1))])
-    # Mt = tf.concat(0,[M,row])
-    # Mt = tf.concat(1,[Mt,col])
-    #
-    # ''' Compute marginal vectors '''
-    # a = tf.concat(0,[p*tf.ones(tf.shape(tf.where(t>0)[:,0:1]))/nt, (1-p)*tf.ones((1,1))])
-    # b = tf.concat(0,[(1-p)*tf.ones(tf.shape(tf.where(t<1)[:,0:1]))/nc, p*tf.ones((1,1))])
-    #
-    # ''' Compute kernel matrix'''
-    # Mlam = eff_lam*Mt
-    # K = tf.exp(-Mlam) + 1e-6 # added constant to avoid nan
-    # U = K*Mt
-    # ainvK = K/a
-    #
-    # u = a
-    # for i in range(0,its):
-    #     u = 1.0/(tf.matmul(ainvK,(b/tf.transpose(tf.matmul(tf.transpose(u),K)))))
-    # v = b/(tf.transpose(tf.matmul(tf.transpose(u),K)))
-    #
-    # T = u*(tf.transpose(v)*K)
+    row = delta*torch.ones(M.shape[1])
+    col = torch.cat((delta*torch.ones(M.shape[2]),torch.zeros((1))),0)
+    Mt = torch.cat((M, torch.unsqueeze(torch.unsqueeze(row, 0), 2)), 2)
+    Mt = torch.cat((Mt, torch.unsqueeze(torch.unsqueeze(col, 0), 1)), 1)
+
+    ''' Compute marginal vectors '''
+    a = torch.cat((p * torch.ones(torch.where(t > 0)[1].shape) / nt, (1 - p) * torch.ones((1))), 0)
+    b = torch.cat(((1-p) * torch.ones(torch.where(t < 1)[1].shape) / nc, p * torch.ones((1))), 0)
+
+    ''' Compute kernel matrix'''
+    Mlam = eff_lam*Mt
+    K = torch.exp(-Mlam) + 1e-6 # added constant to avoid nan
+    U = K*Mt
+    ainvK = K/torch.unsqueeze(torch.unsqueeze(a, 0), 2)
+
+    u = torch.unsqueeze(torch.unsqueeze(a, 0), 2)
+    for i in range(0,its):
+        u = 1.0/(torch.matmul(ainvK,(torch.unsqueeze(torch.unsqueeze(b, 0), 1) / torch.transpose(torch.matmul(torch.transpose(u,1,2),K),1,2))))
+    temp = torch.transpose(torch.matmul(torch.transpose(u,1,2),K),1,2)
+    v = b/(temp)
+
+    T = u*K
     #
     # if not backpropT:
     #     T = tf.stop_gradient(T)
     #
-    # E = T*Mt
-    # D = 2*tf.reduce_sum(E)
-    D =0
-    Mlam = 0
+    E = T*Mt
+    D = 2*torch.sum(E)
+
     return D, Mlam
