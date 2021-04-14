@@ -65,20 +65,20 @@ def train(net, D, I_valid, flags):
     I_train = list(set(I) - set(I_valid))
     n_train = len(I_train)
 
-    ''' Compute treatment probability'''
-    p_treated = np.mean(D['t'][I_train, :])
 
     factual_tensor = torch.Tensor(D['x'][I_train, :]), torch.Tensor(D['yf'][I_train, :]), torch.Tensor(D['t'][I_train, :])
     cfactual_tensor = torch.Tensor(D['x'][I_valid, :]), torch.Tensor(D['yf'][I_valid, :]), torch.Tensor(D['t'][I_valid, :])
     valid_tensor = torch.Tensor(D['x'][I_train, :]), torch.Tensor(D['ycf'][I_train, :]), torch.Tensor(D['t'][I_train, :])
 
     # Loss Function
-    criterion = nn.MSELoss()
+    # criterion = nn.MSELoss()
+    criterion = nn.CrossEntropyLoss()
 
     # Optimizer
     optimizer = optim.Adam(net.parameters(), lr=flags.get_val('lrate'))
 
     # Probability of being treated # Must be adapted if we use test- and trainingset
+    ''' Compute treatment probability'''
     p_t = torch.mean(factual_tensor[2])
 
     for i in range(flags.get_val('iterations')):
@@ -107,16 +107,16 @@ def run():
     init_parameters(flags)
 
     net = cfr_net_pytorch.FCNet()
-    summary(net, [(100, 25), (100, 1)])
+    summary(net, [(25,), (1,)])
 
     D = load_data('data/ihdp_npci_1-100.train.npz')
-
+    i_exp =1
     D_exp = {}
-    D_exp['x'] = D['x']
-    D_exp['t'] = D['t']
-    D_exp['yf'] = D['yf']
+    D_exp['x'] = D['x'][:, :, i_exp - 1]
+    D_exp['t'] = D['t'][:, i_exp - 1:i_exp]
+    D_exp['yf'] = D['yf'][:, i_exp - 1:i_exp]
     if D['HAVE_TRUTH']:
-        D_exp['ycf'] = D['ycf']
+        D_exp['ycf'] = D['ycf'][:, i_exp - 1:i_exp]
     else:
         D_exp['ycf'] = None
 

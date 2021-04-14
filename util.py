@@ -20,6 +20,16 @@ def validation_split(D_exp, val_fraction):
 
     return I_train, I_valid
 
+def dynamic_stitch(indices, data):
+  n = sum(idx.numel() for idx in indices)
+  res  = [None] * n
+  for i, data_ in enumerate(data):
+    idx = indices[i].view(-1)
+    d = data_.view(idx.numel(), -1)
+    k = 0
+    for idx_ in idx: res[idx_] = d[k]; k += 1
+  return res
+
 def pdist2sq(X,Y):
     """ Computes the squared Euclidean distance between all pairs x in X, y in Y """
     Y_temp = torch.transpose(Y,1,2)

@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from util import *
 
+split_output = False
 class FCNet(nn.Module):
     """
     Simple fully connected neural network with residual connections in PyTorch.
@@ -12,7 +13,6 @@ class FCNet(nn.Module):
 
     def __init__(self):
         super(FCNet, self).__init__()
-
 
         p = 0.4
 
@@ -35,13 +35,37 @@ class FCNet(nn.Module):
         h = self.do1(F.relu(self.h_in(x)))
         h = self.do2(F.relu(self.layer_1(h)))
         h_rep = self.do3(F.relu(self.layer_2(h)))
-        h = torch.cat((h_rep,t),2)                           # Concatenating with t
+        h = self._build_output_graph( h, t)
+
+        return h, h_rep
+
+    def _build_output (self, h):
         h = self.do4(F.relu(self.layer_3(h)))
         h = self.do5(F.relu(self.layer_4(h)))
         h = self.do6(F.relu(self.layer_5(h)))
         h = self.fc6(h)
+        return h
 
-        return h, h_rep
+    def _build_output_graph(self, h, t):
+        ''' Construct output/regression layers '''
+        t = torch.round(t)
+        if split_output :
+            i0 = torch.where(t < 1)
+            i1 = torch.where(t > 0)
+
+            temp=torch.index_select(h, 1, i0[1])
+            rep0 = torch.cat((torch.index_select(h, 1, i0[1]),i0[0]),2)
+            rep1 = torch.cat((torch.index_select(h, 1, i1[1]),i1[0]),2)
+
+            y0 = self._build_output(rep0)
+            y1 = self._build_output(rep1)
+
+            y = dynamic_stitch([i0, i1], [y0, y1])
+        else:
+            h = torch.cat((h,t),1)
+            y = self._build_output(h)
+
+        return y
 
 
 def train(train_loader, net, optimizer, criterion, p_t, flags):
@@ -65,10 +89,7 @@ def train(train_loader, net, optimizer, criterion, p_t, flags):
 
 
     # forward
-    temp_in = torch.transpose(inputs,1,2)
-    temp_t = t.unsqueeze(2)
-    outputs,h_rep = net(temp_in,temp_t)
-    temp_label = torch.transpose(labels, 0, 1)
+    outputs,h_rep = net(inputs,t)
 
     # Normalisation of h_rep
     if flags.get_val('normalization') == 'divide':  # normalization set to none default
@@ -87,9 +108,9 @@ def train(train_loader, net, optimizer, criterion, p_t, flags):
     imb_error = get_imbalance_error(h_rep_norm, t, p_ipm, r_alpha, flags)
 
     # Backward + optimize
-    pred_loss = criterion(outputs, torch.transpose(labels,0,1))         # Called the risk in the original file
-    temp = torch.squeeze(outputs,2)
-    risk = torch.mean(sample_weight * torch.square(temp - labels))
+    # temp_pred_loss = criterion(outputs, labels)         # Called the risk in the original file
+    pred_loss = torch.mean(torch.square(outputs - labels))
+    risk = torch.mean(sample_weight * torch.square(outputs - labels))
 
     loss = pred_loss + imb_error + risk
 
