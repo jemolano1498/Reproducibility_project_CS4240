@@ -82,10 +82,6 @@ def train(net, D, D_test, I_valid, flags, i_exp):
     ''' Compute losses '''
     losses = []
 
-    # Loss Function
-    # criterion = nn.MSELoss()
-    criterion = nn.CrossEntropyLoss()
-
     # Optimizer
     optimizer = optim.Adam(net.parameters(), lr=flags.get_val('lrate'))
 
@@ -105,12 +101,12 @@ def train(net, D, D_test, I_valid, flags, i_exp):
 
         train_tensor = torch.Tensor(x_batch), torch.Tensor(y_batch), torch.Tensor(t_batch)
 
-        cfr_net_pytorch.train(train_tensor, net, optimizer, criterion, p_t, flags)
+        cfr_net_pytorch.train(train_tensor, net, optimizer, p_t, flags)
 
         if i % flags.get_val('output_delay') == 0 or i == flags.get_val('iterations') - 1:
-            obj_loss,f_error,imb_err = cfr_net_pytorch.test(factual_tensor, net, optimizer, criterion, p_t, flags)
-            _, cf_error, _ = cfr_net_pytorch.test(cfactual_tensor, net, optimizer, criterion, p_t, flags)
-            valid_obj, valid_f_error, valid_imb = cfr_net_pytorch.test(valid_tensor, net, optimizer, criterion, p_t, flags)
+            obj_loss,f_error,imb_err = cfr_net_pytorch.test(factual_tensor, net, optimizer, p_t, flags)
+            _, cf_error, _ = cfr_net_pytorch.test(cfactual_tensor, net, optimizer, p_t, flags)
+            valid_obj, valid_f_error, valid_imb = cfr_net_pytorch.test(valid_tensor, net, optimizer, p_t, flags)
             losses.append([obj_loss, f_error, cf_error, imb_err, valid_f_error, valid_imb, valid_obj])
             loss_str = str(i) + '\tObj: %.3f,\tF: %.3f,\tCf: %.3f,\tImb: %.2g,\tVal: %.3f,\tValImb: %.2g,\tValObj: %.2f' \
                        % (obj_loss, f_error, cf_error, imb_err, valid_f_error, valid_imb, valid_obj)

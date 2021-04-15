@@ -104,10 +104,7 @@ def test (train_loader, net, optimizer, criterion, p_t, flags):
     return loss, pred_loss, imb_error
 
 
-def train(train_loader, net, optimizer, criterion, p_t, flags):
-
-    # iterate through batches
-    # for i, data in enumerate(train_loader):
+def train(train_loader, net, optimizer, p_t, flags):
 
     # get the inputs; data is a list of [inputs, labels]
     inputs, labels, t = train_loader[0], train_loader[1] , train_loader [2]
@@ -122,7 +119,6 @@ def train(train_loader, net, optimizer, criterion, p_t, flags):
         sample_weight = w_t + w_c
     else:
         sample_weight = 1.0
-
 
     # forward
     outputs,h_rep = net(inputs,t)
