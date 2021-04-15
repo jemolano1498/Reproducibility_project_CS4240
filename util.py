@@ -4,6 +4,14 @@ from scipy.stats import wasserstein_distance
 
 SQRT_CONST = 1e-10
 
+def save_config(fname, flags):
+    """ Save configuration """
+    k_flags = flags.get_dict()
+    s = '\n'.join(['%s: %s' % (k,str(k_flags[k][0])) for k in sorted(k_flags.keys())])
+    f = open(fname,'w')
+    f.write(s)
+    f.close()
+
 def validation_split(D_exp, val_fraction):
     """ Construct a train/validation split """
     n = D_exp['x'].shape[0]

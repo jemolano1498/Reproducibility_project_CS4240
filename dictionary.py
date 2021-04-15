@@ -12,4 +12,7 @@ class Parameters():
     def get_description(self, name):
         return  self.parameter[name][1]
 
+    def get_dict(self):
+        return self.parameter
+
 

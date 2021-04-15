@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
 from torchsummary import summary
+from evaluate import *
 
 def init_parameters (flags):
     flags.add_val('loss', 'l2', """Which loss function to use (l1/l2/log)""")
@@ -65,6 +66,7 @@ def train(net, D, D_test, I_valid, flags, i_exp):
     I = range(n);
     I_train = list(set(I) - set(I_valid))
     n_train = len(I_train)
+
 
 
     factual_tensor = torch.Tensor(D['x'][I_train, :]), torch.Tensor(D['yf'][I_train, :]), torch.Tensor(D['t'][I_train, :])
@@ -143,9 +145,10 @@ def train(net, D, D_test, I_valid, flags, i_exp):
 def run():
 
     flags = Parameters()
+    ''' Save parameters '''
+    outdir = 'results/testing/'
     init_parameters(flags)
-
-    outdir = 'results/'
+    save_config(outdir + 'config.txt', flags)
 
     npzfile = outdir + 'result'
     npzfile_test = outdir + 'result.test'
@@ -221,3 +224,4 @@ def run():
 
 if __name__ == '__main__':
     run()
+    evaluate('configs/example_ihdp.txt')
