@@ -68,7 +68,7 @@ class FCNet(nn.Module):
 
         return y
 
-def test (train_loader, net, optimizer, criterion, p_t, flags):
+def test (train_loader, net, p_t, flags):
     inputs, labels, t = train_loader[0], train_loader[1], train_loader[2]
 
     r_alpha = flags.get_val('p_alpha')
