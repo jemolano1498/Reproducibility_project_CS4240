@@ -14,7 +14,7 @@ class FCNet(nn.Module):
     def __init__(self):
         super(FCNet, self).__init__()
 
-        p = 0.4
+        p = 0.3
 
         self.h_in = nn.Linear(25, 100)
         self.layer_1 = nn.Linear(100, 100)
@@ -36,6 +36,7 @@ class FCNet(nn.Module):
         h = self.do2(F.relu(self.layer_1(h)))
         h_rep = self.do3(F.relu(self.layer_2(h)))
         h = self._build_output_graph( h, t)
+        self.h_rep = h_rep
 
         return h, h_rep
 
@@ -66,6 +67,41 @@ class FCNet(nn.Module):
             y = self._build_output(h)
 
         return y
+
+def test (train_loader, net, optimizer, criterion, p_t, flags):
+    inputs, labels, t = train_loader[0], train_loader[1], train_loader[2]
+
+    r_alpha = flags.get_val('p_alpha')
+
+    # Sample reweighting
+    if flags.get_val('reweight_sample'):
+        w_t = t / (2 * p_t)
+        w_c = (1 - t) / (2 * 1 - p_t)
+        sample_weight = w_t + w_c
+    else:
+        sample_weight = 1.0
+
+    # Imbalance error
+    if flags.get_val('use_p_correction'):
+        p_ipm = p_t
+    else:
+        p_ipm = 0.5
+
+    with torch.no_grad():
+        # forward
+        outputs, h_rep = net(inputs, t)
+        if flags.get_val('normalization') == 'divide':  # normalization set to none default
+            h_rep_norm = h_rep / torch.sqrt((torch.sum(torch.square(h_rep), 1,
+                                                       keepdim=True)))  # Not sure if this works.. but we don't use normalisation
+        else:
+            h_rep_norm = 1.0 * h_rep
+        imb_error = get_imbalance_error(h_rep_norm, t, p_ipm, r_alpha, flags)
+        pred_loss = torch.square(torch.mean(torch.square(outputs - labels)))
+        risk = torch.mean(sample_weight * torch.square(outputs - labels))
+
+    loss = imb_error + risk
+
+    return loss, pred_loss, imb_error
 
 
 def train(train_loader, net, optimizer, criterion, p_t, flags):
@@ -109,10 +145,10 @@ def train(train_loader, net, optimizer, criterion, p_t, flags):
 
     # Backward + optimize
     # temp_pred_loss = criterion(outputs, labels)         # Called the risk in the original file
-    pred_loss = torch.mean(torch.square(outputs - labels))
+    pred_loss = torch.square(torch.mean(torch.square(outputs - labels)))
     risk = torch.mean(sample_weight * torch.square(outputs - labels))
 
-    loss = pred_loss + imb_error + risk
+    loss = imb_error + risk
 
     loss.backward()
     optimizer.step()

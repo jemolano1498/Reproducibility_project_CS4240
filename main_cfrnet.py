@@ -36,10 +36,10 @@ def init_parameters (flags):
     flags.add_val('wass_lambda', 1, """Wasserstein lambda. """)
     flags.add_val('wass_bpt', 0, """Backprop through T matrix? """)
     flags.add_val('varsel', 0, """Whether the first layer performs variable selection. """)
-    flags.add_val('outdir', '../results/tfnet_topic/alpha_sweep_22_d100/', """Output directory. """)
+    flags.add_val('outdir', '../results/', """Output directory. """)
     flags.add_val('datadir', '../data/topic/csv/', """Data directory. """)
     flags.add_val('dataform', 'topic_dmean_seed_%d.csv', """Training data filename form. """)
-    flags.add_val('data_test', '', """Test data filename form. """)
+    flags.add_val('data_test', 'data/ihdp_npci_1-100.test.npz', """Test data filename form. """)
     flags.add_val('sparse', 0, """Whether data is stored in sparse format (.x, .y). """)
     flags.add_val('seed', 1, """Seed. """)
     flags.add_val('repetitions', 1, """Repetitions with different seed.""")
@@ -58,7 +58,8 @@ def init_parameters (flags):
     flags.add_val('reweight_sample', 1,
                   """Whether to reweight sample for prediction loss with average treatment probability. """)
 
-def train(net, D, I_valid, flags):
+def train(net, D, D_test, I_valid, flags, i_exp):
+
     ''' Train/validation split '''
     n = D['x'].shape[0]
     I = range(n);
@@ -67,8 +68,17 @@ def train(net, D, I_valid, flags):
 
 
     factual_tensor = torch.Tensor(D['x'][I_train, :]), torch.Tensor(D['yf'][I_train, :]), torch.Tensor(D['t'][I_train, :])
-    cfactual_tensor = torch.Tensor(D['x'][I_valid, :]), torch.Tensor(D['yf'][I_valid, :]), torch.Tensor(D['t'][I_valid, :])
-    valid_tensor = torch.Tensor(D['x'][I_train, :]), torch.Tensor(D['ycf'][I_train, :]), torch.Tensor(D['t'][I_train, :])
+    valid_tensor = torch.Tensor(D['x'][I_valid, :]), torch.Tensor(D['yf'][I_valid, :]), torch.Tensor(D['t'][I_valid, :])
+    cfactual_tensor = torch.Tensor(D['x'][I_train, :]), torch.Tensor(D['ycf'][I_train, :]), torch.Tensor(D['t'][I_train, :])
+    test_factual_tensor = torch.Tensor(D_test['x']), torch.Tensor(D_test['yf']), torch.Tensor(D_test['t'])
+    test_cfactual_tensor = torch.Tensor(D_test['x']), torch.Tensor(D_test['ycf']), torch.Tensor(D_test['t'])
+
+    ''' Set up for storing predictions '''
+    preds_train = []
+    preds_test = []
+
+    ''' Compute losses '''
+    losses = []
 
     # Loss Function
     # criterion = nn.MSELoss()
@@ -81,6 +91,9 @@ def train(net, D, I_valid, flags):
     ''' Compute treatment probability'''
     p_t = torch.mean(factual_tensor[2])
 
+    reps = []
+    reps_test = []
+
     for i in range(flags.get_val('iterations')):
         ''' Fetch sample '''
         I = random.sample(range(0, n_train), flags.get_val('batch_size'))
@@ -90,39 +103,119 @@ def train(net, D, I_valid, flags):
 
         train_tensor = torch.Tensor(x_batch), torch.Tensor(y_batch), torch.Tensor(t_batch)
 
-        # Create dataloaders from the training and test set for easier iteration over the data
-        # train_loader = DataLoader(TensorDataset(*train_tensor), batch_size=flags.get_val('batch_size'), shuffle=True)
-
-        obj_loss,f_error,imb_err = cfr_net_pytorch.train(train_tensor, net, optimizer, criterion, p_t, flags)
+        cfr_net_pytorch.train(train_tensor, net, optimizer, criterion, p_t, flags)
 
         if i % flags.get_val('output_delay') == 0 or i == flags.get_val('iterations') - 1:
-            loss_str = str(i) + '\tObj: %.3f,\tF: %.3f,\tImb: %.2g' \
-                       % (obj_loss, f_error, imb_err)
+            obj_loss,f_error,imb_err = cfr_net_pytorch.test(factual_tensor, net, optimizer, criterion, p_t, flags)
+            _, cf_error, _ = cfr_net_pytorch.test(cfactual_tensor, net, optimizer, criterion, p_t, flags)
+            valid_obj, valid_f_error, valid_imb = cfr_net_pytorch.test(valid_tensor, net, optimizer, criterion, p_t, flags)
+            losses.append([obj_loss, f_error, cf_error, imb_err, valid_f_error, valid_imb, valid_obj])
+            loss_str = str(i) + '\tObj: %.3f,\tF: %.3f,\tCf: %.3f,\tImb: %.2g,\tVal: %.3f,\tValImb: %.2g,\tValObj: %.2f' \
+                       % (obj_loss, f_error, cf_error, imb_err, valid_f_error, valid_imb, valid_obj)
             print(loss_str)
 
+        ''' Compute predictions every M iterations '''
+        if (flags.get_val('output_delay')> 0 and i % flags.get_val('pred_output_delay') == 0) or i == flags.get_val('iterations') - 1:
+            with torch.no_grad():
+                y_pred_f, _ = net(torch.Tensor(D['x']), torch.Tensor(D['t']))
+                y_pred_cf, _ = net(torch.Tensor(D['x']), torch.Tensor(1 - D['t']))
+
+            preds_train.append(np.concatenate((y_pred_f, y_pred_cf), axis=1))
+
+            if D_test is not None:
+                with torch.no_grad():
+                    y_pred_f_test, _ = net(torch.Tensor(D_test['x']), torch.Tensor(D_test['t']))
+                    y_pred_cf_test, _ = net(torch.Tensor(D_test['x']), torch.Tensor(1 - D_test['t']))
+                    preds_test.append(np.concatenate((y_pred_f_test, y_pred_cf_test), axis=1))
+
+            if flags.get_val('save_rep') and i_exp == 1:
+                with torch.no_grad():
+                    _, reps_i = net(torch.Tensor(D['x']), torch.Tensor(D['t']))
+                reps.append(reps_i)
+
+                if D_test is not None:
+                    with torch.no_grad():
+                        _, reps_test_i = net(torch.Tensor(D_test['x']), torch.Tensor(D_test['t']))
+                    reps_test.append(reps_test_i)
+
+    return losses, preds_train, preds_test, reps, reps_test
 
 def run():
 
     flags = Parameters()
     init_parameters(flags)
 
+    outdir = 'results/'
+
+    npzfile = outdir + 'result'
+    npzfile_test = outdir + 'result.test'
+    repfile = outdir + 'reps'
+    repfile_test = outdir + 'reps.test'
+
     net = cfr_net_pytorch.FCNet()
     summary(net, [(25,), (1,)])
 
+    ''' Set up for saving variables '''
+    all_losses = []
+    all_preds_train = []
+    all_preds_test = []
+    all_valid = []
+
+    has_test = False
+    if not flags.get_val('data_test') == '':  # if test set supplied
+        has_test = True
+        dataform_test = flags.get_val('data_test')
+
     D = load_data('data/ihdp_npci_1-100.train.npz')
-    i_exp =1
-    D_exp = {}
-    D_exp['x'] = D['x'][:, :, i_exp - 1]
-    D_exp['t'] = D['t'][:, i_exp - 1:i_exp]
-    D_exp['yf'] = D['yf'][:, i_exp - 1:i_exp]
-    if D['HAVE_TRUTH']:
-        D_exp['ycf'] = D['ycf'][:, i_exp - 1:i_exp]
-    else:
-        D_exp['ycf'] = None
+    D_test = load_data(dataform_test)
+    for i_exp in range(1, flags.get_val('repetitions') + 1):
+        D_exp = {}
+        D_exp['x'] = D['x'][:, :, i_exp - 1]
+        D_exp['t'] = D['t'][:, i_exp - 1:i_exp]
+        D_exp['yf'] = D['yf'][:, i_exp - 1:i_exp]
+        if D['HAVE_TRUTH']:
+            D_exp['ycf'] = D['ycf'][:, i_exp - 1:i_exp]
+        else:
+            D_exp['ycf'] = None
 
-    I_train, I_valid = validation_split(D_exp, flags.get_val('val_part'))
+        if has_test:
+            D_exp_test = {}
+            D_exp_test['x'] = D_test['x'][:, :, i_exp - 1]
+            D_exp_test['t'] = D_test['t'][:, i_exp - 1:i_exp]
+            D_exp_test['yf'] = D_test['yf'][:, i_exp - 1:i_exp]
+            if D_test['HAVE_TRUTH']:
+                D_exp_test['ycf'] = D_test['ycf'][:, i_exp - 1:i_exp]
+            else:
+                D_exp_test['ycf'] = None
 
-    losses, preds_train, preds_test, reps, reps_test = train(net, D_exp, I_valid, flags)
+        I_train, I_valid = validation_split(D_exp, flags.get_val('val_part'))
+
+        losses, preds_train, preds_test, reps, reps_test = train(net, D_exp, D_exp_test, I_valid, flags, i_exp)
+
+        ''' Collect all reps '''
+        all_preds_train.append(preds_train)
+        all_preds_test.append(preds_test)
+        all_losses.append(losses)
+
+        ''' Fix shape for output (n_units, dim, n_reps, n_outputs) '''
+        out_preds_train = np.swapaxes(np.swapaxes(all_preds_train, 1, 3), 0, 2)
+        if has_test:
+            out_preds_test = np.swapaxes(np.swapaxes(all_preds_test, 1, 3), 0, 2)
+        out_losses = np.swapaxes(np.swapaxes(all_losses, 0, 2), 0, 1)
+
+        ''' Save results and predictions '''
+        all_valid.append(I_valid)
+        np.savez(npzfile, pred=out_preds_train, loss=out_losses, val=np.array(all_valid))
+
+        if has_test:
+            np.savez(npzfile_test, pred=out_preds_test)
+
+        ''' Save representations '''
+        if flags.get_val('save_rep') and i_exp == 1:
+            np.savez(repfile, rep=reps)
+
+            if has_test:
+                np.savez(repfile_test, rep=reps_test)
 
 
 

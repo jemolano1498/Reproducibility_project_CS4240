@@ -69,14 +69,14 @@ def mmd2_rbf(X,t,p,sig):
 def mmd2_lin(X,t,p):
     ''' Linear MMD '''
 
-    it = torch.where(t>0)[1] # getting the positions
-    ic = torch.where(t<1)[1]
+    it = torch.where(t>0)[0] # getting the positions
+    ic = torch.where(t<1)[0]
 
-    Xt = torch.index_select(X, 1, it) # Getting the nx100 for each value
-    Xc = torch.index_select(X, 1, ic)
+    Xt = torch.index_select(X, 0, it) # Getting the nx100 for each value
+    Xc = torch.index_select(X, 0, ic)
 
-    mean_control = torch.mean(Xc,1) # mean of 1x100
-    mean_treated = torch.mean(Xt,1)
+    mean_control = torch.mean(Xc,0) # mean of 1x100
+    mean_treated = torch.mean(Xt,0)
 
     mmd = torch.sum(torch.square(2.0*p*mean_treated - 2.0*(1.0-p)*mean_control))
 
