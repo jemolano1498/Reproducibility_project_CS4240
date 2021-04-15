@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from scipy.stats import wasserstein_distance
+
 
 SQRT_CONST = 1e-10
 
