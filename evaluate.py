@@ -52,23 +52,9 @@ def evaluate(config_file, overwrite=False, filters=None):
                                 data_path_train=data_train,
                                 data_path_test=data_test,
                                 binary=binary)
-        # Save evaluation
-    #     pickle.dump((eval_results, configs), open(eval_path, "wb"))
-    # else:
-    #     # Load evaluation
-    #     eval_results, configs = pickle.load(open(eval_path, "rb"))
-
-    # Sort by alpha
-    #eval_results, configs = sort_by_config(eval_results, configs, 'p_alpha')
 
     # Print evaluation results
     plot_evaluation_cont(eval_results, configs, output_dir, data_train, data_test, filters)
-
-    # Plot evaluation
-    #if configs[0]['loss'] == 'log':
-    #    plot_cfr_evaluation_bin(eval_results, configs, output_dir)
-    #else:
-    #    plot_cfr_evaluation_cont(eval_results, configs, output_dir)
 
 def eval_run (config_file):
         overwrite = False

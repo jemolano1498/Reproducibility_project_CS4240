@@ -140,10 +140,7 @@ def wasserstein(X,t,p,lam=10,its=10,sq=False,backpropT=False):
     v = b/(temp)
 
     T = u*(torch.transpose(v,0,1)*K)
-    #
-    # if not backpropT:
-    #     T = tf.stop_gradient(T)
-    #
+
     E = T*Mt
     D = 2*torch.sum(E)
 

@@ -46,8 +46,7 @@ def init_parameters (flags):
     flags.add_val('repetitions', 1, """Repetitions with different seed.""")
     flags.add_val('use_p_correction', 1, """Whether to use population size p(t) in mmd/disc/wass.""")
     flags.add_val('optimizer', 'RMSProp', """Which optimizer to use. (RMSProp/Adagrad/GradientDescent/Adam)""")
-    # flags.add_val('imb_fun', 'mmd2_lin',"""Which imbalance penalty to use (mmd_lin/mmd_rbf/mmd2_lin/mmd2_rbf/lindisc/wass). """)
-    flags.add_val('imb_fun', 'wass',"""Which imbalance penalty to use (mmd_lin/mmd_rbf/mmd2_lin/mmd2_rbf/lindisc/wass). """)
+    flags.add_val('imb_fun', 'mmd2_lin',"""Which imbalance penalty to use (mmd_lin/mmd_rbf/mmd2_lin/mmd2_rbf/lindisc/wass). """)
     flags.add_val('output_csv', 0, """Whether to save a CSV file with the results""")
     flags.add_val('output_delay', 100, """Number of iterations between log/loss outputs. """)
     flags.add_val('pred_output_delay', -1,
@@ -68,12 +67,10 @@ def train(net, D, D_test, I_valid, flags, i_exp):
     n_train = len(I_train)
 
 
-
+    # Testing Groups
     factual_tensor = torch.Tensor(D['x'][I_train, :]), torch.Tensor(D['yf'][I_train, :]), torch.Tensor(D['t'][I_train, :])
     valid_tensor = torch.Tensor(D['x'][I_valid, :]), torch.Tensor(D['yf'][I_valid, :]), torch.Tensor(D['t'][I_valid, :])
     cfactual_tensor = torch.Tensor(D['x'][I_train, :]), torch.Tensor(D['ycf'][I_train, :]), torch.Tensor(D['t'][I_train, :])
-    test_factual_tensor = torch.Tensor(D_test['x']), torch.Tensor(D_test['yf']), torch.Tensor(D_test['t'])
-    test_cfactual_tensor = torch.Tensor(D_test['x']), torch.Tensor(D_test['ycf']), torch.Tensor(D_test['t'])
 
     ''' Set up for storing predictions '''
     preds_train = []
@@ -92,6 +89,7 @@ def train(net, D, D_test, I_valid, flags, i_exp):
     reps = []
     reps_test = []
 
+    # Trainning loop
     for i in range(flags.get_val('iterations')):
         ''' Fetch sample '''
         I = random.sample(range(0, n_train), flags.get_val('batch_size'))
@@ -146,11 +144,13 @@ def run():
     init_parameters(flags)
     save_config(outdir + 'config.txt', flags)
 
+    # Output files
     npzfile = outdir + 'result'
     npzfile_test = outdir + 'result.test'
     repfile = outdir + 'reps'
     repfile_test = outdir + 'reps.test'
 
+    # Initialization of the CFRNEt
     net = cfr_net_pytorch.FCNet()
     summary(net, [(25,), (1,)])
 
@@ -220,4 +220,5 @@ def run():
 
 if __name__ == '__main__':
     run()
+    # Run the evaluation functions on the training and testing outputs
     evaluate('configs/example_ihdp.txt')

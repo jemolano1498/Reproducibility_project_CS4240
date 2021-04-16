@@ -16,6 +16,7 @@ class FCNet(nn.Module):
 
         p = 0.3
 
+        # Creating the linear layers
         self.h_in = nn.Linear(25, 100)
         self.layer_1 = nn.Linear(100, 100)
         self.layer_2 = nn.Linear(100, 100)
@@ -23,14 +24,18 @@ class FCNet(nn.Module):
         self.layer_4 = nn.Linear(100, 100)
         self.layer_5 = nn.Linear(100, 100)
 
+        # Creating the dropout layers
         self.do1 = torch.nn.Dropout(p=p)
         self.do2 = torch.nn.Dropout(p=p)
         self.do3 = torch.nn.Dropout(p=p)
         self.do4 = torch.nn.Dropout(p=p)
         self.do5 = torch.nn.Dropout(p=p)
         self.do6 = torch.nn.Dropout(p=p)
+
+        # Creating the linear classifier layer
         self.fc6 = nn.Linear(100, 1)
 
+    # Forward pass for the first half of the network
     def forward(self, x, t):
         h = self.do1(F.relu(self.h_in(x)))
         h = self.do2(F.relu(self.layer_1(h)))
@@ -40,6 +45,7 @@ class FCNet(nn.Module):
 
         return h, h_rep
 
+    # Forward pass for the second half of the network
     def _build_output (self, h):
         h = self.do4(F.relu(self.layer_3(h)))
         h = self.do5(F.relu(self.layer_4(h)))
@@ -47,6 +53,7 @@ class FCNet(nn.Module):
         h = self.fc6(h)
         return h
 
+    # Function for splitting data OR concatenate with t
     def _build_output_graph(self, h, t):
         ''' Construct output/regression layers '''
         t = torch.round(t)
@@ -67,6 +74,7 @@ class FCNet(nn.Module):
 
         return y
 
+# Test funtion for the Net
 def test (train_loader, net, p_t, flags):
     inputs, labels, t = train_loader[0], train_loader[1], train_loader[2]
 
@@ -102,7 +110,7 @@ def test (train_loader, net, p_t, flags):
 
     return loss, pred_loss, imb_error
 
-
+# Train funtion for the Net
 def train(train_loader, net, optimizer, p_t, flags):
 
     # get the inputs; data is a list of [inputs, labels]
@@ -150,6 +158,7 @@ def train(train_loader, net, optimizer, p_t, flags):
 
     return loss, pred_loss, imb_error
 
+# Imbalance error calculation
 def get_imbalance_error (h_rep_norm, t, p_ipm, r_alpha, flags):
     # I just copy pasted this code from the orignial CFR net to remind you which imbalance functiions we should use
     if flags.get_val('imb_fun') == 'mmd2_lin':

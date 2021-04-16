@@ -233,9 +233,6 @@ def evaluate_cont_ate(predictions, data, i_exp, I_subset=None,
 
     pehe_appr = pehe_nn(yf_p, ycf_p, yf, x, t, nn_t, nn_c)
 
-    # @TODO: Not clear what this is for continuous data
-    #policy_value, policy_curve = policy_val(t, yf, eff_pred, compute_policy_curve)
-
     return {'ate_pred': ate_pred, 'att_pred': att_pred,
             'atc_pred': atc_pred, 'bias_ate': bias_ate,
             'bias_att': bias_att, 'bias_atc': bias_atc,
