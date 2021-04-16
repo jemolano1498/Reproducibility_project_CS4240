@@ -46,8 +46,8 @@ def init_parameters (flags):
     flags.add_val('repetitions', 1, """Repetitions with different seed.""")
     flags.add_val('use_p_correction', 1, """Whether to use population size p(t) in mmd/disc/wass.""")
     flags.add_val('optimizer', 'RMSProp', """Which optimizer to use. (RMSProp/Adagrad/GradientDescent/Adam)""")
-    flags.add_val('imb_fun', 'mmd2_lin',
-                  """Which imbalance penalty to use (mmd_lin/mmd_rbf/mmd2_lin/mmd2_rbf/lindisc/wass). """)
+    # flags.add_val('imb_fun', 'mmd2_lin',"""Which imbalance penalty to use (mmd_lin/mmd_rbf/mmd2_lin/mmd2_rbf/lindisc/wass). """)
+    flags.add_val('imb_fun', 'wass',"""Which imbalance penalty to use (mmd_lin/mmd_rbf/mmd2_lin/mmd2_rbf/lindisc/wass). """)
     flags.add_val('output_csv', 0, """Whether to save a CSV file with the results""")
     flags.add_val('output_delay', 100, """Number of iterations between log/loss outputs. """)
     flags.add_val('pred_output_delay', -1,

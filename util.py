@@ -40,11 +40,11 @@ def dynamic_stitch(indices, data):
 
 def pdist2sq(X,Y):
     """ Computes the squared Euclidean distance between all pairs x in X, y in Y """
-    Y_temp = torch.transpose(Y,1,2)
+    Y_temp = torch.transpose(Y,0,1)
     C = -2*torch.matmul(X,Y_temp)
-    nx = torch.sum(torch.square(X),2,keepdim=True)
-    ny = torch.sum(torch.square(Y),2,keepdim=True)
-    D = (C + torch.transpose(ny,1,2)) + nx
+    nx = torch.sum(torch.square(X),1,keepdim=True)
+    ny = torch.sum(torch.square(Y),1,keepdim=True)
+    D = (C + torch.transpose(ny,0,1)) + nx
     return D
 
 def safe_sqrt(x, lbound=SQRT_CONST):
@@ -93,17 +93,14 @@ def mmd2_lin(X,t,p):
 def wasserstein(X,t,p,lam=10,its=10,sq=False,backpropT=False):
     """ Returns the Wasserstein distance between treatment groups """
 
-    it = torch.where(t > 0)[1]  # getting the positions
-    ic = torch.where(t < 1)[1]
+    it = torch.where(t > 0)[0]  # getting the positions
+    ic = torch.where(t < 1)[0]
 
-    Xt = torch.index_select(X, 1, it)  # Getting the nx100 for each value
-    Xc = torch.index_select(X, 1, ic)
+    Xt = torch.index_select(X, 0, it)  # Getting the nx100 for each value
+    Xc = torch.index_select(X, 0, ic)
 
-    nc = Xc.shape[1]
-    nt = Xt.shape[1]
-
-
-    wasserstein_distance(Xt.detach().numpy(),Xc.detach().numpy())
+    nc = Xc.shape[0]
+    nt = Xt.shape[0]
 
     ''' Compute distance matrix'''
     if sq:
@@ -120,27 +117,29 @@ def wasserstein(X,t,p,lam=10,its=10,sq=False,backpropT=False):
     ''' Compute new distance matrix '''
     Mt = M
     row = delta*torch.ones(M.shape[1])
-    col = torch.cat((delta*torch.ones(M.shape[2]),torch.zeros((1))),0)
-    Mt = torch.cat((M, torch.unsqueeze(torch.unsqueeze(row, 0), 2)), 2)
-    Mt = torch.cat((Mt, torch.unsqueeze(torch.unsqueeze(col, 0), 1)), 1)
+    col = torch.cat((delta*torch.ones(M.shape[0]),torch.zeros((1))),0)
+    Mt = torch.cat((M, torch.unsqueeze(row, 0)), 0)
+    Mt = torch.cat((Mt, torch.unsqueeze(col, 1)), 1)
 
     ''' Compute marginal vectors '''
-    a = torch.cat((p * torch.ones(torch.where(t > 0)[1].shape) / nt, (1 - p) * torch.ones((1))), 0)
-    b = torch.cat(((1-p) * torch.ones(torch.where(t < 1)[1].shape) / nc, p * torch.ones((1))), 0)
+    temp = torch.where(t > 0)[0].shape
+    a = torch.cat((p * torch.ones((torch.where(t > 0)[0].shape[0],1)) / nt, (1 - p) * torch.ones((1,1))), 0)
+    b = torch.cat(((1-p) * torch.ones((torch.where(t < 1)[0].shape[0],1)) / nc, p * torch.ones((1,1))), 0)
 
     ''' Compute kernel matrix'''
     Mlam = eff_lam*Mt
     K = torch.exp(-Mlam) + 1e-6 # added constant to avoid nan
     U = K*Mt
-    ainvK = K/torch.unsqueeze(torch.unsqueeze(a, 0), 2)
+    ainvK = K/a
 
-    u = torch.unsqueeze(torch.unsqueeze(a, 0), 2)
+    u = a
     for i in range(0,its):
-        u = 1.0/(torch.matmul(ainvK,(torch.unsqueeze(torch.unsqueeze(b, 0), 1) / torch.transpose(torch.matmul(torch.transpose(u,1,2),K),1,2))))
-    temp = torch.transpose(torch.matmul(torch.transpose(u,1,2),K),1,2)
+        temp = torch.transpose(torch.matmul(torch.transpose(u,0,1),K),0,1)
+        u = 1.0/(torch.matmul(ainvK,( b / temp)))
+    temp = torch.transpose(torch.matmul(torch.transpose(u,0,1),K),0,1)
     v = b/(temp)
 
-    T = u*K
+    T = u*(torch.transpose(v,0,1)*K)
     #
     # if not backpropT:
     #     T = tf.stop_gradient(T)

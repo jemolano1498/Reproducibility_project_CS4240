@@ -54,14 +54,13 @@ class FCNet(nn.Module):
             i0 = torch.where(t < 1)
             i1 = torch.where(t > 0)
 
-            temp=torch.index_select(h, 1, i0[1])
-            rep0 = torch.cat((torch.index_select(h, 1, i0[1]),i0[0]),2)
-            rep1 = torch.cat((torch.index_select(h, 1, i1[1]),i1[0]),2)
+            rep0 = torch.cat((torch.index_select(h, 0, i0[0]),torch.unsqueeze(i0[1],1)),1)
+            rep1 = torch.cat((torch.index_select(h, 0, i1[0]),torch.unsqueeze(i1[1],1)),1)
 
             y0 = self._build_output(rep0)
             y1 = self._build_output(rep1)
 
-            y = dynamic_stitch([i0, i1], [y0, y1])
+            y = torch.unsqueeze(torch.FloatTensor(dynamic_stitch([i0[0], i1[0]], [y0, y1])),1)
         else:
             h = torch.cat((h,t),1)
             y = self._build_output(h)
@@ -163,7 +162,7 @@ def get_imbalance_error (h_rep_norm, t, p_ipm, r_alpha, flags):
         imb_dist, imb_mat = wasserstein(h_rep_norm, t, p_ipm, lam=flags.get_val('wass_lambda'),
                                         its=flags.get_val('wass_iterations'), sq=False,
                                         backpropT=flags.get_val('wass_bpt'))
-        # imb_error = r_alpha * imb_dist
+        imb_error = r_alpha * imb_dist
 
     else:
         imb_error = 0
