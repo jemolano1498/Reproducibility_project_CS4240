@@ -12,13 +12,13 @@ from evaluate import *
 
 def init_parameters (flags):
     flags.add_val('loss', 'l2', """Which loss function to use (l1/l2/log)""")
-    flags.add_val('n_in', 2, """Number of representation layers. """)
+    flags.add_val('n_in', 4, """Number of representation layers. """)
     flags.add_val('n_out', 2, """Number of regression layers. """)
     flags.add_val('p_alpha', 1e-4, """Imbalance regularization param. """)
     flags.add_val('p_lambda', 0.0, """Weight decay regularization parameter. """)
     flags.add_val('rep_weight_decay', 1, """Whether to penalize representation layers with weight decay""")
-    flags.add_val('dropout_in', 0.9, """Input layers dropout keep rate. """)
-    flags.add_val('dropout_out', 0.9, """Output layers dropout keep rate. """)
+    flags.add_val('dropout_in', 0.3, """Input layers dropout keep rate. """)
+    flags.add_val('dropout_out', 0.2, """Output layers dropout keep rate. """)
     flags.add_val('nonlin', 'relu', """Kind of non-linearity. Default relu. """)
     flags.add_val('lrate', 0.05, """Learning rate. """)
     flags.add_val('decay', 0.5, """RMSProp decay. """)
@@ -46,8 +46,8 @@ def init_parameters (flags):
     flags.add_val('repetitions', 1, """Repetitions with different seed.""")
     flags.add_val('use_p_correction', 1, """Whether to use population size p(t) in mmd/disc/wass.""")
     flags.add_val('optimizer', 'RMSProp', """Which optimizer to use. (RMSProp/Adagrad/GradientDescent/Adam)""")
-    # flags.add_val('imb_fun', 'mmd2_lin',"""Which imbalance penalty to use (mmd_lin/mmd_rbf/mmd2_lin/mmd2_rbf/lindisc/wass). """)
-    flags.add_val('imb_fun', 'wass',"""Which imbalance penalty to use (mmd_lin/mmd_rbf/mmd2_lin/mmd2_rbf/lindisc/wass). """)
+    flags.add_val('imb_fun', 'mmd2_lin',"""Which imbalance penalty to use (mmd_lin/mmd_rbf/mmd2_lin/mmd2_rbf/lindisc/wass). """)
+    # flags.add_val('imb_fun', 'wass',"""Which imbalance penalty to use (mmd_lin/mmd_rbf/mmd2_lin/mmd2_rbf/lindisc/wass). """)
     flags.add_val('output_csv', 0, """Whether to save a CSV file with the results""")
     flags.add_val('output_delay', 100, """Number of iterations between log/loss outputs. """)
     flags.add_val('pred_output_delay', -1,
@@ -151,7 +151,14 @@ def run():
     repfile = outdir + 'reps'
     repfile_test = outdir + 'reps.test'
 
-    net = cfr_net_pytorch.FCNet()
+    dim_in = flags.get_val('dim_in')
+    n_in = flags.get_val('n_in')
+    dim_out = flags.get_val('dim_out')
+    n_out = flags.get_val('n_out')
+    dropout_in = flags.get_val('dropout_in')
+    dropout_out = flags.get_val('dropout_out')
+
+    net = cfr_net_pytorch.FCNet(dim_in, n_in, dim_out, n_out, dropout_in, dropout_out)
     summary(net, [(25,), (1,)])
 
     ''' Set up for saving variables '''

@@ -3,3 +3,7 @@ venv/
 .idea/
 
 __pycache__/
+
+results/testing/result.npz
+
+results/testing/result.test.npz

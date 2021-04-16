@@ -11,40 +11,48 @@ class FCNet(nn.Module):
     Layers are defined in __init__ and forward pass implemented in forward.
     """
 
-    def __init__(self):
+    def __init__(self, dim_in, n_in, dim_out, n_out, dropout_in, dropout_out):
         super(FCNet, self).__init__()
 
-        p = 0.3
+        self.in_layers=[]
+        self.in_drop_layers = []
+        self.out_layers = []
+        self.out_drop_layers = []
 
-        self.h_in = nn.Linear(25, 100)
-        self.layer_1 = nn.Linear(100, 100)
-        self.layer_2 = nn.Linear(100, 100)
-        self.layer_3 = nn.Linear(101, 100)
-        self.layer_4 = nn.Linear(100, 100)
-        self.layer_5 = nn.Linear(100, 100)
+        self.h_in = nn.Linear(25, dim_in)
+        self.do1 = torch.nn.Dropout(p=dropout_in)
 
-        self.do1 = torch.nn.Dropout(p=p)
-        self.do2 = torch.nn.Dropout(p=p)
-        self.do3 = torch.nn.Dropout(p=p)
-        self.do4 = torch.nn.Dropout(p=p)
-        self.do5 = torch.nn.Dropout(p=p)
-        self.do6 = torch.nn.Dropout(p=p)
-        self.fc6 = nn.Linear(100, 1)
+        for i in range(n_in):
+            self.in_layers.append(nn.Linear(dim_in, dim_in))
+            self.in_drop_layers.append(torch.nn.Dropout(p=dropout_in))
+
+        if not split_output:
+            self.out_layers.append(nn.Linear(dim_out+1, dim_out))
+        else:
+            self.out_layers.append(nn.Linear(dim_out, dim_out))
+        self.out_drop_layers.append(torch.nn.Dropout(p=dropout_out))
+
+        for i in range(n_out):
+            self.out_layers.append(nn.Linear(dim_out, dim_out))
+            self.out_drop_layers.append(torch.nn.Dropout(p=dropout_out))
+
+        self.h_out = nn.Linear(dim_out, 1)
 
     def forward(self, x, t):
         h = self.do1(F.relu(self.h_in(x)))
-        h = self.do2(F.relu(self.layer_1(h)))
-        h_rep = self.do3(F.relu(self.layer_2(h)))
+        for i in range(len(self.in_layers)):
+            h = self.in_drop_layers[i](F.relu(self.in_layers[i](h)))
+
+        h_rep = h
         h = self._build_output_graph( h, t)
         self.h_rep = h_rep
 
         return h, h_rep
 
     def _build_output (self, h):
-        h = self.do4(F.relu(self.layer_3(h)))
-        h = self.do5(F.relu(self.layer_4(h)))
-        h = self.do6(F.relu(self.layer_5(h)))
-        h = self.fc6(h)
+        for i in range(len(self.out_layers)):
+            h = self.out_drop_layers[i](F.relu(self.out_layers[i](h)))
+        h = self.h_out(h)
         return h
 
     def _build_output_graph(self, h, t):
@@ -54,8 +62,8 @@ class FCNet(nn.Module):
             i0 = torch.where(t < 1)
             i1 = torch.where(t > 0)
 
-            rep0 = torch.cat((torch.index_select(h, 0, i0[0]),torch.unsqueeze(i0[1],1)),1)
-            rep1 = torch.cat((torch.index_select(h, 0, i1[0]),torch.unsqueeze(i1[1],1)),1)
+            rep0 = torch.index_select(h, 0, i0[0])
+            rep1 = torch.index_select(h, 0, i1[0])
 
             y0 = self._build_output(rep0)
             y1 = self._build_output(rep1)
